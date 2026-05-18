@@ -36,14 +36,15 @@ class WormGameScreen extends StatefulWidget {
 
 class _WormGameScreenState extends State<WormGameScreen>
     with SingleTickerProviderStateMixin {
-  late final GameLevel _level;
-  late final WormGameController _controller;
+  late GameLevel _level;
+  late WormGameController _controller;
   late final AnimationController _escapeController;
   Timer? _timer;
   Timer? _feedbackTimer;
   TapResult? _flashResult;
   TapResult? _escapeResult;
   bool _paused = false;
+  int _levelNumber = GameLevel.firstLevel;
   late int _remainingSeconds;
 
   bool get _timeExpired => _remainingSeconds <= 0;
@@ -51,7 +52,7 @@ class _WormGameScreenState extends State<WormGameScreen>
   @override
   void initState() {
     super.initState();
-    _level = GameLevel.levelThree();
+    _level = GameLevel.byNumber(_levelNumber);
     _controller = WormGameController(_level)..addListener(_refresh);
     _escapeController =
         AnimationController(
@@ -96,13 +97,52 @@ class _WormGameScreenState extends State<WormGameScreen>
   }
 
   void _reset() {
+    _clearTransientState();
+    _paused = false;
+    _remainingSeconds = _level.seconds;
+    _controller.reset();
+  }
+
+  void _previousLevel() {
+    _goToLevel(_levelNumber - 1);
+  }
+
+  void _nextLevel() {
+    _goToLevel(_levelNumber + 1);
+  }
+
+  void _goToLevel(int levelNumber) {
+    final clamped = levelNumber
+        .clamp(GameLevel.firstLevel, GameLevel.lastLevel)
+        .toInt();
+    if (clamped == _levelNumber) {
+      return;
+    }
+
+    final nextLevel = GameLevel.byNumber(clamped);
+    final nextController = WormGameController(nextLevel);
+
+    _clearTransientState();
+    _controller
+      ..removeListener(_refresh)
+      ..dispose();
+    nextController.addListener(_refresh);
+
+    setState(() {
+      _levelNumber = clamped;
+      _level = nextLevel;
+      _controller = nextController;
+      _paused = false;
+      _remainingSeconds = nextLevel.seconds;
+    });
+  }
+
+  void _clearTransientState() {
+    _feedbackTimer?.cancel();
     _flashResult = null;
     _escapeResult = null;
     _escapeController.stop();
     _escapeController.value = 0;
-    _paused = false;
-    _remainingSeconds = _level.seconds;
-    _controller.reset();
   }
 
   void _togglePause() {
@@ -147,13 +187,18 @@ class _WormGameScreenState extends State<WormGameScreen>
         child: Column(
           children: [
             _HudBar(
+              levelNumber: _level.number,
               escaped: _controller.escaped,
               total: _controller.totalEscapable,
               lives: _controller.lives,
               remainingSeconds: _remainingSeconds,
               paused: _paused,
+              canGoPrevious: _levelNumber > GameLevel.firstLevel,
+              canGoNext: _levelNumber < GameLevel.lastLevel,
               onPause: _togglePause,
               onReset: _reset,
+              onPreviousLevel: _previousLevel,
+              onNextLevel: _nextLevel,
             ),
             Expanded(
               child: Padding(
@@ -196,8 +241,10 @@ class _WormGameScreenState extends State<WormGameScreen>
                                 paused: _paused,
                                 gameOver: _controller.isGameOver,
                                 moves: _controller.moves,
+                                canGoNext: _levelNumber < GameLevel.lastLevel,
                                 onResume: _togglePause,
                                 onReset: _reset,
+                                onNextLevel: _nextLevel,
                               ),
                           ],
                         );
@@ -258,22 +305,32 @@ class _WormGameScreenState extends State<WormGameScreen>
 
 class _HudBar extends StatelessWidget {
   const _HudBar({
+    required this.levelNumber,
     required this.escaped,
     required this.total,
     required this.lives,
     required this.remainingSeconds,
     required this.paused,
+    required this.canGoPrevious,
+    required this.canGoNext,
     required this.onPause,
     required this.onReset,
+    required this.onPreviousLevel,
+    required this.onNextLevel,
   });
 
+  final int levelNumber;
   final int escaped;
   final int total;
   final int lives;
   final int remainingSeconds;
   final bool paused;
+  final bool canGoPrevious;
+  final bool canGoNext;
   final VoidCallback onPause;
   final VoidCallback onReset;
+  final VoidCallback onPreviousLevel;
+  final VoidCallback onNextLevel;
 
   @override
   Widget build(BuildContext context) {
@@ -326,15 +383,53 @@ class _HudBar extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
-                        'Level 3',
-                        key: ValueKey('level-label'),
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
-                          height: 1,
-                        ),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          Widget label() {
+                            return FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                'Level $levelNumber',
+                                key: const ValueKey('level-label'),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w900,
+                                  height: 1,
+                                ),
+                              ),
+                            );
+                          }
+
+                          if (constraints.maxWidth < 120) {
+                            return SizedBox(
+                              height: 30,
+                              child: Center(child: label()),
+                            );
+                          }
+
+                          return Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _MiniIconButton(
+                                key: const ValueKey('previous-level-button'),
+                                icon: Icons.chevron_left_rounded,
+                                onPressed: canGoPrevious
+                                    ? onPreviousLevel
+                                    : null,
+                                tooltip: 'Previous level',
+                              ),
+                              SizedBox(width: 60, child: label()),
+                              _MiniIconButton(
+                                key: const ValueKey('next-level-button'),
+                                icon: Icons.chevron_right_rounded,
+                                onPressed: canGoNext ? onNextLevel : null,
+                                tooltip: 'Next level',
+                              ),
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 5),
                       Row(
@@ -450,6 +545,42 @@ class _RoundIconButton extends StatelessWidget {
   }
 }
 
+class _MiniIconButton extends StatelessWidget {
+  const _MiniIconButton({
+    super.key,
+    required this.icon,
+    required this.onPressed,
+    required this.tooltip,
+  });
+
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    return Tooltip(
+      message: tooltip,
+      child: SizedBox.square(
+        dimension: 30,
+        child: Material(
+          color: Colors.transparent,
+          child: InkResponse(
+            onTap: onPressed,
+            radius: 16,
+            child: Icon(
+              icon,
+              color: Colors.white.withValues(alpha: enabled ? 1 : 0.38),
+              size: 24,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _HeartIcon extends StatelessWidget {
   const _HeartIcon({required this.active});
 
@@ -487,8 +618,10 @@ class _StatusOverlay extends StatelessWidget {
     required this.paused,
     required this.gameOver,
     required this.moves,
+    required this.canGoNext,
     required this.onResume,
     required this.onReset,
+    required this.onNextLevel,
   });
 
   final bool complete;
@@ -496,8 +629,10 @@ class _StatusOverlay extends StatelessWidget {
   final bool paused;
   final bool gameOver;
   final int moves;
+  final bool canGoNext;
   final VoidCallback onResume;
   final VoidCallback onReset;
+  final VoidCallback onNextLevel;
 
   @override
   Widget build(BuildContext context) {
@@ -554,6 +689,13 @@ class _StatusOverlay extends StatelessWidget {
                       tooltip: 'Resume',
                     ),
                   if (paused) const SizedBox(width: 12),
+                  if (complete && canGoNext)
+                    _RoundIconButton(
+                      icon: Icons.arrow_forward_rounded,
+                      onPressed: onNextLevel,
+                      tooltip: 'Next level',
+                    ),
+                  if (complete && canGoNext) const SizedBox(width: 12),
                   _RoundIconButton(
                     icon: Icons.restart_alt_rounded,
                     onPressed: onReset,

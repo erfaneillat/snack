@@ -322,6 +322,614 @@ class GameLevel {
   }
 }
 
+class _LevelPlan {
+  const _LevelPlan({
+    required this.number,
+    required this.rows,
+    required this.cols,
+    required this.seconds,
+    required this.lanes,
+    required this.heroCells,
+  });
+
+  final int number;
+  final int rows;
+  final int cols;
+  final int seconds;
+  final List<_LaneSpec> lanes;
+  final List<BoardCell> heroCells;
+}
+
+class _LaneSpec {
+  const _LaneSpec({
+    required this.direction,
+    required this.fixedIndex,
+    required this.heads,
+    required this.lengths,
+  });
+
+  final Direction direction;
+  final int fixedIndex;
+  final List<int> heads;
+  final List<int> lengths;
+}
+
+class _WormColors {
+  const _WormColors(this.color, this.darkColor);
+
+  final Color color;
+  final Color darkColor;
+}
+
+class _LevelFactory {
+  const _LevelFactory(this.plan);
+
+  final _LevelPlan plan;
+
+  GameLevel build() {
+    final worms = <Worm>[];
+    var colorIndex = 0;
+
+    for (var laneIndex = 0; laneIndex < plan.lanes.length; laneIndex++) {
+      final lane = plan.lanes[laneIndex];
+      if (lane.heads.length != lane.lengths.length) {
+        throw StateError('Level ${plan.number} has an invalid lane spec.');
+      }
+
+      for (var wormIndex = 0; wormIndex < lane.heads.length; wormIndex++) {
+        final colors = _wormPalette[colorIndex % _wormPalette.length];
+        worms.add(
+          Worm(
+            id: 'level-${plan.number}-lane-$laneIndex-worm-$wormIndex',
+            color: colors.color,
+            darkColor: colors.darkColor,
+            cells: _cellsFor(lane, wormIndex),
+          ),
+        );
+        colorIndex++;
+      }
+    }
+
+    if (plan.heroCells.isNotEmpty) {
+      worms.add(
+        const Worm(
+          id: 'hero',
+          color: _heroColor,
+          darkColor: _heroDarkColor,
+          isHero: true,
+          canMove: false,
+          cells: [],
+        ).copyWith(cells: plan.heroCells),
+      );
+    }
+
+    _validateLevel(plan, worms);
+
+    return GameLevel(
+      number: plan.number,
+      rows: plan.rows,
+      cols: plan.cols,
+      seconds: plan.seconds,
+      worms: worms,
+    );
+  }
+
+  List<BoardCell> _cellsFor(_LaneSpec lane, int wormIndex) {
+    final head = lane.heads[wormIndex];
+    final length = lane.lengths[wormIndex];
+    return [
+      for (var step = 0; step < length; step++)
+        switch (lane.direction) {
+          Direction.right => BoardCell(lane.fixedIndex, head - step),
+          Direction.left => BoardCell(lane.fixedIndex, head + step),
+          Direction.down => BoardCell(head - step, lane.fixedIndex),
+          Direction.up => BoardCell(head + step, lane.fixedIndex),
+        },
+    ];
+  }
+}
+
+const _heroColor = Color(0xffef5130);
+const _heroDarkColor = Color(0xffb93621);
+
+const _wormPalette = [
+  _WormColors(Color(0xffffbd3d), Color(0xffdb861d)),
+  _WormColors(Color(0xff58c46d), Color(0xff2f9348)),
+  _WormColors(Color(0xff4f8df7), Color(0xff2c62bb)),
+  _WormColors(Color(0xffb86cff), Color(0xff8341ca)),
+  _WormColors(Color(0xffff7c70), Color(0xffc94b42)),
+  _WormColors(Color(0xff36c8c4), Color(0xff23918f)),
+];
+
+const _levelPlans = [
+  _LevelPlan(
+    number: 1,
+    rows: 8,
+    cols: 8,
+    seconds: 70,
+    lanes: [
+      _LaneSpec(
+        direction: Direction.right,
+        fixedIndex: 1,
+        heads: [2, 5],
+        lengths: [2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.left,
+        fixedIndex: 4,
+        heads: [5],
+        lengths: [2],
+      ),
+    ],
+    heroCells: [
+      BoardCell(6, 2),
+      BoardCell(6, 3),
+      BoardCell(7, 3),
+      BoardCell(7, 2),
+    ],
+  ),
+  _LevelPlan(
+    number: 2,
+    rows: 8,
+    cols: 8,
+    seconds: 75,
+    lanes: [
+      _LaneSpec(
+        direction: Direction.right,
+        fixedIndex: 1,
+        heads: [2, 5],
+        lengths: [2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.left,
+        fixedIndex: 3,
+        heads: [5, 2],
+        lengths: [2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.down,
+        fixedIndex: 0,
+        heads: [2, 5],
+        lengths: [2, 2],
+      ),
+    ],
+    heroCells: [
+      BoardCell(6, 3),
+      BoardCell(6, 4),
+      BoardCell(7, 4),
+      BoardCell(7, 3),
+    ],
+  ),
+  _LevelPlan(
+    number: 3,
+    rows: 9,
+    cols: 9,
+    seconds: 85,
+    lanes: [
+      _LaneSpec(
+        direction: Direction.right,
+        fixedIndex: 1,
+        heads: [2, 5, 7],
+        lengths: [2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.left,
+        fixedIndex: 3,
+        heads: [6, 3],
+        lengths: [2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.down,
+        fixedIndex: 0,
+        heads: [2, 5, 7],
+        lengths: [2, 2, 2],
+      ),
+    ],
+    heroCells: [
+      BoardCell(5, 4),
+      BoardCell(5, 5),
+      BoardCell(6, 5),
+      BoardCell(6, 4),
+    ],
+  ),
+  _LevelPlan(
+    number: 4,
+    rows: 10,
+    cols: 9,
+    seconds: 90,
+    lanes: [
+      _LaneSpec(
+        direction: Direction.right,
+        fixedIndex: 1,
+        heads: [2, 5, 7],
+        lengths: [2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.left,
+        fixedIndex: 4,
+        heads: [6, 3, 1],
+        lengths: [2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.down,
+        fixedIndex: 7,
+        heads: [3, 6, 8],
+        lengths: [2, 2, 2],
+      ),
+    ],
+    heroCells: [
+      BoardCell(8, 2),
+      BoardCell(8, 3),
+      BoardCell(9, 3),
+      BoardCell(9, 2),
+    ],
+  ),
+  _LevelPlan(
+    number: 5,
+    rows: 10,
+    cols: 10,
+    seconds: 95,
+    lanes: [
+      _LaneSpec(
+        direction: Direction.right,
+        fixedIndex: 1,
+        heads: [2, 5, 8],
+        lengths: [2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.left,
+        fixedIndex: 3,
+        heads: [7, 4, 1],
+        lengths: [2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.down,
+        fixedIndex: 0,
+        heads: [2, 5, 8],
+        lengths: [2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.up,
+        fixedIndex: 9,
+        heads: [7],
+        lengths: [2],
+      ),
+    ],
+    heroCells: [
+      BoardCell(6, 4),
+      BoardCell(6, 5),
+      BoardCell(7, 5),
+      BoardCell(7, 4),
+    ],
+  ),
+  _LevelPlan(
+    number: 6,
+    rows: 11,
+    cols: 10,
+    seconds: 100,
+    lanes: [
+      _LaneSpec(
+        direction: Direction.right,
+        fixedIndex: 1,
+        heads: [2, 5, 8],
+        lengths: [2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.left,
+        fixedIndex: 3,
+        heads: [7, 4, 1],
+        lengths: [2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.down,
+        fixedIndex: 0,
+        heads: [2, 5, 8],
+        lengths: [2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.up,
+        fixedIndex: 8,
+        heads: [8, 5],
+        lengths: [2, 2],
+      ),
+    ],
+    heroCells: [
+      BoardCell(9, 3),
+      BoardCell(9, 4),
+      BoardCell(10, 4),
+      BoardCell(10, 3),
+    ],
+  ),
+  _LevelPlan(
+    number: 7,
+    rows: 11,
+    cols: 11,
+    seconds: 105,
+    lanes: [
+      _LaneSpec(
+        direction: Direction.right,
+        fixedIndex: 1,
+        heads: [2, 5, 8],
+        lengths: [2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.left,
+        fixedIndex: 3,
+        heads: [8, 5, 2],
+        lengths: [2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.right,
+        fixedIndex: 5,
+        heads: [2, 5, 8],
+        lengths: [2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.down,
+        fixedIndex: 0,
+        heads: [2, 5, 8],
+        lengths: [2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.up,
+        fixedIndex: 10,
+        heads: [8, 5],
+        lengths: [2, 2],
+      ),
+    ],
+    heroCells: [
+      BoardCell(8, 4),
+      BoardCell(8, 5),
+      BoardCell(9, 5),
+      BoardCell(9, 4),
+    ],
+  ),
+  _LevelPlan(
+    number: 8,
+    rows: 12,
+    cols: 11,
+    seconds: 110,
+    lanes: [
+      _LaneSpec(
+        direction: Direction.right,
+        fixedIndex: 1,
+        heads: [2, 5, 8],
+        lengths: [2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.left,
+        fixedIndex: 3,
+        heads: [8, 5, 2],
+        lengths: [2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.right,
+        fixedIndex: 5,
+        heads: [2, 5, 8],
+        lengths: [2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.left,
+        fixedIndex: 7,
+        heads: [8, 5, 2],
+        lengths: [2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.down,
+        fixedIndex: 0,
+        heads: [2, 5, 8, 10],
+        lengths: [2, 2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.up,
+        fixedIndex: 10,
+        heads: [9, 6, 3],
+        lengths: [2, 2, 2],
+      ),
+    ],
+    heroCells: [
+      BoardCell(10, 4),
+      BoardCell(10, 5),
+      BoardCell(11, 5),
+      BoardCell(11, 4),
+    ],
+  ),
+  _LevelPlan(
+    number: 9,
+    rows: 12,
+    cols: 12,
+    seconds: 115,
+    lanes: [
+      _LaneSpec(
+        direction: Direction.right,
+        fixedIndex: 1,
+        heads: [2, 5, 8, 10],
+        lengths: [2, 2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.left,
+        fixedIndex: 3,
+        heads: [9, 6, 3, 1],
+        lengths: [2, 2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.right,
+        fixedIndex: 5,
+        heads: [2, 5, 8, 10],
+        lengths: [2, 2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.left,
+        fixedIndex: 7,
+        heads: [9, 6, 3, 1],
+        lengths: [2, 2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.down,
+        fixedIndex: 0,
+        heads: [2, 5, 8, 10],
+        lengths: [2, 2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.up,
+        fixedIndex: 11,
+        heads: [9, 6, 3],
+        lengths: [2, 2, 2],
+      ),
+    ],
+    heroCells: [
+      BoardCell(10, 5),
+      BoardCell(10, 6),
+      BoardCell(11, 6),
+      BoardCell(11, 5),
+    ],
+  ),
+  _LevelPlan(
+    number: 10,
+    rows: 13,
+    cols: 12,
+    seconds: 120,
+    lanes: [
+      _LaneSpec(
+        direction: Direction.right,
+        fixedIndex: 1,
+        heads: [2, 5, 8, 10],
+        lengths: [2, 2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.left,
+        fixedIndex: 3,
+        heads: [9, 6, 3, 1],
+        lengths: [2, 2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.right,
+        fixedIndex: 5,
+        heads: [2, 5, 8, 10],
+        lengths: [2, 2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.left,
+        fixedIndex: 7,
+        heads: [9, 6, 3, 1],
+        lengths: [2, 2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.right,
+        fixedIndex: 9,
+        heads: [2, 5, 8, 10],
+        lengths: [2, 2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.down,
+        fixedIndex: 0,
+        heads: [2, 5, 8, 11],
+        lengths: [2, 2, 2, 2],
+      ),
+      _LaneSpec(
+        direction: Direction.up,
+        fixedIndex: 11,
+        heads: [10, 7, 4],
+        lengths: [2, 2, 2],
+      ),
+    ],
+    heroCells: [
+      BoardCell(11, 5),
+      BoardCell(11, 6),
+      BoardCell(12, 6),
+      BoardCell(12, 5),
+    ],
+  ),
+];
+
+void _validateLevel(_LevelPlan plan, List<Worm> worms) {
+  final occupied = <BoardCell, String>{};
+  for (final worm in worms) {
+    for (final cell in worm.cells) {
+      if (cell.row < 0 ||
+          cell.row >= plan.rows ||
+          cell.col < 0 ||
+          cell.col >= plan.cols) {
+        throw StateError('Level ${plan.number} has an out-of-bounds worm.');
+      }
+
+      final existing = occupied[cell];
+      if (existing != null) {
+        throw StateError(
+          'Level ${plan.number} overlaps ${worm.id} with $existing.',
+        );
+      }
+      occupied[cell] = worm.id;
+    }
+  }
+
+  final solution = _solveLevel(plan, worms);
+  if (solution.length != worms.where((worm) => worm.canMove).length) {
+    throw StateError('Level ${plan.number} is not solvable.');
+  }
+}
+
+List<String> _solveLevel(_LevelPlan plan, List<Worm> worms) {
+  final staticWorms = [
+    for (final worm in worms)
+      if (!worm.canMove || worm.isHero) worm,
+  ];
+  final remaining = [
+    for (final worm in worms)
+      if (worm.canMove && !worm.isHero) worm,
+  ];
+  final solution = <String>[];
+
+  while (remaining.isNotEmpty) {
+    final clearIndex = remaining.indexWhere(
+      (worm) => !_hasBlocker(plan, worm, [...staticWorms, ...remaining]),
+    );
+    if (clearIndex == -1) {
+      return solution;
+    }
+    solution.add(remaining[clearIndex].id);
+    remaining.removeAt(clearIndex);
+  }
+
+  return solution;
+}
+
+bool _hasBlocker(_LevelPlan plan, Worm worm, List<Worm> blockers) {
+  final direction = _generatedHeadDirection(worm);
+  var cursor = worm.front.moved(direction);
+  while (_insidePlan(plan, cursor)) {
+    for (final blocker in blockers) {
+      if (blocker.id != worm.id && blocker.cells.contains(cursor)) {
+        return true;
+      }
+    }
+    cursor = cursor.moved(direction);
+  }
+  return false;
+}
+
+bool _insidePlan(_LevelPlan plan, BoardCell cell) {
+  return cell.row >= 0 &&
+      cell.row < plan.rows &&
+      cell.col >= 0 &&
+      cell.col < plan.cols;
+}
+
+Direction _generatedHeadDirection(Worm worm) {
+  if (worm.cells.length < 2) {
+    return Direction.up;
+  }
+
+  final rowDelta = worm.front.row - worm.cells[1].row;
+  final colDelta = worm.front.col - worm.cells[1].col;
+
+  return Direction.values.firstWhere(
+    (direction) =>
+        direction.rowDelta == rowDelta && direction.colDelta == colDelta,
+    orElse: () => Direction.up,
+  );
+}
+
 enum TapOutcome { ignored, escaped, crashed }
 
 @immutable
