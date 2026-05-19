@@ -1,17 +1,13 @@
-# game
+# Iran University Portal
 
-A new Flutter project.
+A Flutter application for a Persian RTL university website.
 
-## Getting Started
+The first implemented page is the news feed for Islamic Azad University Young
+Researchers and Elite Club. It fetches:
 
-This project is a starting point for a Flutter application.
+```text
+https://bpj.iau.ir/api/v1/news/list?page=1&pageSize=20&type=0
+```
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-# snack
+If the API is blocked or unavailable during local development, the app displays
+the documented sample response as fallback data.

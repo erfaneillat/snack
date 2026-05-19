@@ -1,85 +1,94 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:game/game/game_model.dart';
-import 'package:game/game/worm_game.dart';
+import 'package:iran_university_portal/src/app/university_news_app.dart';
+import 'package:iran_university_portal/src/features/news/domain/entities/news_article.dart';
+import 'package:iran_university_portal/src/features/news/domain/entities/news_feed.dart';
+import 'package:iran_university_portal/src/features/news/domain/repositories/news_repository.dart';
+import 'package:iran_university_portal/src/features/news/presentation/providers/news_providers.dart';
 
 void main() {
-  test('Generated levels 1 through 10 load deterministically', () {
-    for (
-      var levelNumber = GameLevel.firstLevel;
-      levelNumber <= GameLevel.lastLevel;
-      levelNumber++
-    ) {
-      final level = GameLevel.byNumber(levelNumber);
-
-      expect(level.number, levelNumber);
-      expect(level.worms.where((worm) => worm.canMove), isNotEmpty);
-    }
-  });
-
-  testWidgets('Worm puzzle smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const WormJamApp());
-
-    expect(find.text('Level 1'), findsOneWidget);
-    expect(find.text('0/3'), findsOneWidget);
-    expect(find.byKey(const ValueKey('game-board')), findsOneWidget);
-
-    await tester.tap(find.byKey(const ValueKey('pause-button')));
-    await tester.pump();
-
-    expect(find.text('Paused'), findsOneWidget);
-  });
-
-  testWidgets('Tapping an open snake escapes it', (WidgetTester tester) async {
-    await tester.pumpWidget(const WormJamApp());
-
-    final boardFinder = find.byKey(const ValueKey('game-board'));
-    final boardTopLeft = tester.getTopLeft(boardFinder);
-    final boardSize = tester.getSize(boardFinder);
-    final metrics = BoardMetrics.fromSize(size: boardSize, cols: 8, rows: 8);
-
-    await tester.tapAt(boardTopLeft + metrics.centerOf(const BoardCell(1, 5)));
+  testWidgets('renders the RTL university news page', (tester) async {
+    await tester.pumpWidget(_testApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('1/3'), findsOneWidget);
+    expect(find.text('اخبار و اطلاعیه‌ها'), findsOneWidget);
+    expect(find.textContaining('باشگاه پژوهشگران'), findsWidgets);
+    expect(find.textContaining('طرح حامی'), findsWidgets);
+    expect(find.byKey(const ValueKey('news-search-field')), findsOneWidget);
+    expect(
+      Directionality.of(tester.element(find.byType(Scaffold))),
+      TextDirection.rtl,
+    );
   });
 
-  testWidgets('Tapping a blocked snake costs one heart', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(const WormJamApp());
+  testWidgets('filters news cards by query', (tester) async {
+    await tester.pumpWidget(_testApp());
+    await tester.pumpAndSettle();
 
-    final boardFinder = find.byKey(const ValueKey('game-board'));
-    final boardTopLeft = tester.getTopLeft(boardFinder);
-    final boardSize = tester.getSize(boardFinder);
-    final metrics = BoardMetrics.fromSize(size: boardSize, cols: 8, rows: 8);
+    await tester.enterText(
+      find.byKey(const ValueKey('news-search-field')),
+      'نانو',
+    );
+    await tester.pumpAndSettle();
 
-    await tester.tapAt(boardTopLeft + metrics.centerOf(const BoardCell(1, 2)));
-    await tester.pump();
-
-    final emptyHearts = tester
-        .widgetList<Icon>(find.byIcon(Icons.favorite_rounded))
-        .where((icon) => icon.color == const Color(0xffb8c2d4))
-        .length;
-
-    expect(find.text('0/3'), findsOneWidget);
-    expect(emptyHearts, 1);
+    expect(find.textContaining('رویدادهای نانو'), findsOneWidget);
+    expect(find.textContaining('طرح حامی'), findsNothing);
   });
 
-  testWidgets('Worm puzzle fits a narrow phone viewport', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('fits a narrow phone viewport', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(const WormJamApp());
-    await tester.pump();
+    await tester.pumpWidget(_testApp());
+    await tester.pumpAndSettle();
 
-    expect(find.text('Level 1'), findsOneWidget);
+    expect(find.text('اخبار و اطلاعیه‌ها'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+}
+
+Widget _testApp() {
+  return ProviderScope(
+    overrides: [
+      newsRepositoryProvider.overrideWithValue(const _FakeNewsRepository()),
+    ],
+    child: const UniversityNewsApp(),
+  );
+}
+
+class _FakeNewsRepository implements NewsRepository {
+  const _FakeNewsRepository();
+
+  @override
+  Future<NewsFeed> getNews({
+    int page = 1,
+    int pageSize = 20,
+    int type = 0,
+  }) async {
+    return NewsFeed(
+      page: page,
+      pageSize: pageSize,
+      totalCount: 2,
+      loadedAt: DateTime(2026, 5, 19),
+      items: [
+        NewsArticle(
+          id: 1,
+          title: 'طرح حامی فاصله میان دانشجو و ساختار اداری را کاهش داد',
+          publishDate: DateTime(2026, 5, 11),
+          linkCode: '33FW56',
+          newsType: type,
+        ),
+        NewsArticle(
+          id: 2,
+          title: 'منتخبین رویدادهای نانو به سوی صنعت هدایت می شوند',
+          publishDate: DateTime(2025, 11, 23),
+          linkCode: '66WE85',
+          newsType: type,
+        ),
+      ],
+    );
+  }
 }

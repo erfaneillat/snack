@@ -1,4 +1,4 @@
-package com.example.game
+package com.iau.newsportal
 
 import io.flutter.embedding.android.FlutterActivity
 
