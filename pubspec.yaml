@@ -22,6 +22,10 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
+dependency_overrides:
+  # path_provider_android 2.3.x pulls in package:jni, which requires Android NDK 28.
+  path_provider_android: 2.2.23
+
 flutter:
   uses-material-design: true
   fonts:
