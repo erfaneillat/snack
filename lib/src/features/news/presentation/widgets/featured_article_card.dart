@@ -17,12 +17,12 @@ class FeaturedArticleCard extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final headlineWidth = (constraints.maxWidth * 0.68).clamp(190.0, 250.0);
+        final headlineWidth = (constraints.maxWidth - 128).clamp(210.0, 286.0);
 
         return SizedBox(
-          height: 136,
+          height: 188,
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
             child: Stack(
               fit: StackFit.expand,
               children: [
@@ -37,60 +37,73 @@ class FeaturedArticleCard extends StatelessWidget {
                       begin: Alignment.centerRight,
                       end: Alignment.centerLeft,
                       colors: [
-                        Color(0xee053174),
-                        Color(0xdd06408f),
-                        Color(0x8806408f),
-                        Color(0x3306408f),
+                        Color(0xf2071b5c),
+                        Color(0xe80b2370),
+                        Color(0xaa102f8d),
+                        Color(0x4406408f),
                       ],
                     ),
                   ),
                 ),
-                Positioned(
+                const PositionedDirectional(
+                  start: 16,
                   top: 12,
-                  right: 14,
+                  child: _FeaturedPill(label: 'خبر ویژه'),
+                ),
+                PositionedDirectional(
+                  top: 48,
+                  start: 16,
+                  end: constraints.maxWidth - headlineWidth - 16,
                   child: SizedBox(
                     width: headlineWidth,
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
                           'معاون دانشجویی باشگاه پژوهشگران:',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.right,
+                          textDirection: TextDirection.rtl,
                           style: Theme.of(context).textTheme.labelSmall
                               ?.copyWith(
-                                color: Colors.white,
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 11,
                                 fontWeight: FontWeight.w800,
-                                height: 1.1,
+                                height: 1.2,
                               ),
                         ),
-                        const SizedBox(height: 5),
+                        const SizedBox(height: 7),
                         Text(
                           PersianDigits.format(headline),
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.right,
+                          textDirection: TextDirection.rtl,
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(
                                 color: Colors.white,
-                                fontSize: 15.5,
+                                fontSize: 17,
                                 fontWeight: FontWeight.w900,
-                                height: 1.32,
+                                height: 1.35,
                               ),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const Positioned(left: 12, bottom: 10, child: _ReadButton()),
+                const PositionedDirectional(
+                  end: 12,
+                  bottom: 12,
+                  child: _ReadButton(),
+                ),
                 if (article.publishDate != null)
-                  Positioned(
-                    right: 14,
-                    left: 130,
-                    bottom: 14,
+                  PositionedDirectional(
+                    start: 16,
+                    end: 128,
+                    bottom: 17,
                     child: Align(
-                      alignment: Alignment.centerRight,
+                      alignment: AlignmentDirectional.centerStart,
                       child: _FeaturedDate(date: article.publishDate!),
                     ),
                   ),
@@ -112,14 +125,44 @@ String _featuredHeadline(String title) {
   return trimmed;
 }
 
+class _FeaturedPill extends StatelessWidget {
+  const _FeaturedPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 26,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: AppColors.teal,
+        borderRadius: BorderRadius.circular(13),
+      ),
+      child: Center(
+        child: Text(
+          label,
+          textDirection: TextDirection.rtl,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Colors.white,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w900,
+            height: 1.05,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ReadButton extends StatelessWidget {
   const _ReadButton();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 28,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      height: 32,
+      padding: const EdgeInsets.symmetric(horizontal: 13),
       decoration: BoxDecoration(
         color: AppColors.brightTeal,
         borderRadius: BorderRadius.circular(16),
@@ -133,16 +176,22 @@ class _ReadButton extends StatelessWidget {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        textDirection: TextDirection.rtl,
         children: [
-          const Icon(Icons.chevron_left_rounded, color: Colors.white, size: 17),
-          const SizedBox(width: 5),
           Text(
             'مشاهده خبر',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: Colors.white,
+              fontSize: 11.5,
               fontWeight: FontWeight.w900,
-              height: 1,
+              height: 1.05,
             ),
+          ),
+          const SizedBox(width: 6),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: Colors.white,
+            size: 18,
           ),
         ],
       ),
@@ -159,24 +208,27 @@ class _FeaturedDate extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
+      textDirection: TextDirection.rtl,
       children: [
+        Icon(
+          Icons.calendar_month_outlined,
+          color: Colors.white.withValues(alpha: 0.86),
+          size: 15,
+        ),
+        const SizedBox(width: 5),
         Flexible(
           child: Text(
             PersianDateFormatter.format(date),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+            textDirection: TextDirection.rtl,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: Colors.white.withValues(alpha: 0.9),
+              fontSize: 11,
               fontWeight: FontWeight.w700,
-              height: 1,
+              height: 1.05,
             ),
           ),
-        ),
-        const SizedBox(width: 5),
-        Icon(
-          Icons.calendar_month_outlined,
-          color: Colors.white.withValues(alpha: 0.86),
-          size: 14,
         ),
       ],
     );

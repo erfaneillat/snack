@@ -9,11 +9,11 @@ class LoadingNewsList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const _Skeleton(height: 294),
-        const SizedBox(height: 14),
+        const _Skeleton(height: 188),
+        const SizedBox(height: 10),
         for (var i = 0; i < 5; i++) ...[
-          const _Skeleton(height: 132),
-          if (i != 4) const SizedBox(height: 12),
+          const _Skeleton(height: 124),
+          if (i != 4) const SizedBox(height: 10),
         ],
       ],
     );
@@ -74,20 +74,22 @@ class AppStatePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.softBorder),
       ),
       child: Column(
         children: [
-          Icon(icon, size: 46, color: AppColors.teal),
+          Icon(icon, size: 42, color: AppColors.teal),
           const SizedBox(height: 14),
           Text(
             title,
+            textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               color: AppColors.ink,
+              fontSize: 18,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -97,6 +99,7 @@ class AppStatePanel extends StatelessWidget {
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: AppColors.muted,
+              fontSize: 13,
               height: 1.7,
             ),
           ),
@@ -123,8 +126,8 @@ class _Skeleton extends StatelessWidget {
       height: height,
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.softBorder),
       ),
       child: Center(
         child: SizedBox(
