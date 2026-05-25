@@ -20,11 +20,29 @@ final dioProvider = Provider<Dio>((ref) {
       LogInterceptor(
         requestBody: true,
         responseHeader: false,
-        responseBody: true,
+        responseBody: false,
         logPrint: (object) => debugPrint(object.toString()),
       ),
     );
   }
 
   return dio;
+});
+
+final imageDioProvider = Provider<Dio>((ref) {
+  return Dio(
+    BaseOptions(
+      baseUrl: 'https://${AppConfig.apiHost}',
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 12),
+      headers: const {
+        'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+        'Referer': 'https://${AppConfig.apiHost}/',
+        'User-Agent':
+            'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 '
+            '(KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36',
+      },
+      responseType: ResponseType.bytes,
+    ),
+  );
 });

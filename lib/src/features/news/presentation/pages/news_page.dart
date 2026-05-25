@@ -30,7 +30,8 @@ class NewsPage extends ConsumerWidget {
                 width: width,
                 height: constraints.maxHeight,
                 child: feedState.when(
-                  skipLoadingOnRefresh: false,
+                  skipLoadingOnReload: true,
+                  skipLoadingOnRefresh: true,
                   data: (feed) => _NewsScrollView(feed: feed),
                   loading: () => const _NewsLoadingView(),
                   error: (error, stackTrace) => _NewsErrorView(
@@ -105,6 +106,8 @@ class _NewsScrollViewState extends ConsumerState<_NewsScrollView> {
     _queueLoadMoreIfNeeded();
     final visibleItems = ref.watch(filteredNewsProvider);
     final query = ref.watch(newsSearchQueryProvider);
+    final selectedType = ref.watch(selectedNewsTypeProvider);
+    final hasLocalFilter = query.trim().isNotEmpty || selectedType != null;
 
     return RefreshIndicator(
       color: AppColors.royalBlue,
@@ -123,17 +126,25 @@ class _NewsScrollViewState extends ConsumerState<_NewsScrollView> {
               child: NewsToolbar(
                 totalCount: widget.feed.totalCount,
                 enabled: true,
+                articles: widget.feed.items,
               ),
             ),
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               child: visibleItems.isEmpty
                   ? EmptyNewsPanel(
                       query: query,
+                      filterLabel: selectedType == null
+                          ? null
+                          : newsTypeLabel(selectedType),
                       onClear: () {
                         ref.read(newsSearchQueryProvider.notifier).clear();
+                        ref.read(selectedNewsTypeProvider.notifier).clear();
+                        if (!hasLocalFilter) {
+                          ref.invalidate(newsFeedProvider);
+                        }
                       },
                     )
                   : _NewsContent(visibleItems: visibleItems),
@@ -219,7 +230,7 @@ class _NewsContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         FeaturedArticleCard(article: featured),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         for (var index = 0; index < rest.length; index++) ...[
           NewsArticleCard(article: rest[index]),
           if (index != rest.length - 1) const SizedBox(height: 10),

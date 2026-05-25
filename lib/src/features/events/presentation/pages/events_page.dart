@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/widgets/forward_chevron.dart';
 import '../../../../app/widgets/mobile_page_header.dart';
+import '../../../../app/widgets/shimmer.dart';
 import '../../../../core/utils/persian_date_formatter.dart';
 import '../../../../core/utils/persian_digits.dart';
 import '../../domain/entities/event_item.dart';
@@ -48,8 +50,8 @@ class _EventsPageState extends ConsumerState<EventsPage> {
       }
     });
 
-    final featuredEvents = ref.watch(featuredEventsProvider);
-    final activeEvents = ref.watch(filteredEventsProvider);
+    final featuredEventsState = ref.watch(featuredEventsProvider);
+    final activeEventsState = ref.watch(filteredEventsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -63,50 +65,351 @@ class _EventsPageState extends ConsumerState<EventsPage> {
               child: SizedBox(
                 width: width,
                 height: constraints.maxHeight,
-                child: CustomScrollView(
-                  physics: const BouncingScrollPhysics(
-                    parent: AlwaysScrollableScrollPhysics(),
+                child: activeEventsState.when(
+                  skipLoadingOnRefresh: false,
+                  data: (activeEvents) {
+                    return _EventsContentView(
+                      searchController: _searchController,
+                      featuredController: _featuredController,
+                      featuredEvents:
+                          featuredEventsState.value ?? const <EventItem>[],
+                      activeEvents: activeEvents,
+                    );
+                  },
+                  loading: () => const _EventsLoadingView(),
+                  error: (error, stackTrace) => _EventsErrorView(
+                    onRetry: () => ref.invalidate(eventItemsProvider),
                   ),
-                  slivers: [
-                    const SliverToBoxAdapter(child: _EventsTopBar()),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                        child: _SearchAndFilters(controller: _searchController),
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-                        child: _FeaturedEventCarousel(
-                          controller: _featuredController,
-                          events: featuredEvents,
-                        ),
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: _FeaturedDots(totalCount: featuredEvents.length),
-                    ),
-                    const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-                        child: _ActiveEventsHeader(),
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 32),
-                        child: activeEvents.isEmpty
-                            ? const _EmptyEventsPanel()
-                            : _ActiveEventsList(events: activeEvents),
-                      ),
-                    ),
-                  ],
                 ),
               ),
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _EventsContentView extends StatelessWidget {
+  const _EventsContentView({
+    required this.searchController,
+    required this.featuredController,
+    required this.featuredEvents,
+    required this.activeEvents,
+  });
+
+  final TextEditingController searchController;
+  final PageController featuredController;
+  final List<EventItem> featuredEvents;
+  final List<EventItem> activeEvents;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
+      slivers: [
+        const SliverToBoxAdapter(child: _EventsTopBar()),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: _SearchAndFilters(controller: searchController),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: _FeaturedEventCarousel(
+              controller: featuredController,
+              events: featuredEvents,
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: _FeaturedDots(totalCount: featuredEvents.length),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: _ActiveEventsHeader(totalCount: activeEvents.length),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 32),
+            child: activeEvents.isEmpty
+                ? const _EmptyEventsPanel()
+                : _ActiveEventsList(events: activeEvents),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EventsLoadingView extends StatelessWidget {
+  const _EventsLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return const CustomScrollView(
+      physics: AlwaysScrollableScrollPhysics(),
+      slivers: [
+        SliverToBoxAdapter(child: _EventsTopBar()),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: _EventsToolbarSkeleton(),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 32),
+            child: _EventsSkeletonList(),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EventsErrorView extends StatelessWidget {
+  const _EventsErrorView({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        const SliverToBoxAdapter(child: _EventsTopBar()),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 32),
+            child: _EventsConnectionErrorPanel(onRetry: onRetry),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EventsConnectionErrorPanel extends StatelessWidget {
+  const _EventsConnectionErrorPanel({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.softBorder),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.wifi_off_rounded, size: 42, color: AppColors.teal),
+          const SizedBox(height: 14),
+          Text(
+            'دریافت رویدادها ناموفق بود',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              color: AppColors.ink,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'ارتباط با سرویس رویدادها برقرار نشد. دوباره تلاش کنید.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppColors.muted,
+              fontSize: 13,
+              height: 1.7,
+            ),
+          ),
+          const SizedBox(height: 18),
+          FilledButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('تلاش دوباره'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EventsSkeletonList extends StatelessWidget {
+  const _EventsSkeletonList();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const _FeaturedEventSkeleton(),
+        const SizedBox(height: 12),
+        const _EventSectionHeaderSkeleton(),
+        const SizedBox(height: 10),
+        for (var i = 0; i < 5; i++) ...[
+          const _ActiveEventSkeleton(),
+          if (i != 4) const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
+}
+
+class _EventsToolbarSkeleton extends StatelessWidget {
+  const _EventsToolbarSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: const [
+        ShimmerCard(
+          height: 48,
+          padding: EdgeInsets.symmetric(horizontal: 14),
+          child: Row(
+            textDirection: TextDirection.rtl,
+            children: [
+              Expanded(child: ShimmerBlock(height: 14, radius: 7)),
+              SizedBox(width: 12),
+              ShimmerBlock(width: 20, height: 20, radius: 10),
+            ],
+          ),
+        ),
+        SizedBox(height: 12),
+        Row(
+          textDirection: TextDirection.rtl,
+          children: [
+            ShimmerBlock(width: 72, height: 38, radius: 19),
+            SizedBox(width: 8),
+            ShimmerBlock(width: 82, height: 38, radius: 19),
+            SizedBox(width: 8),
+            ShimmerBlock(width: 94, height: 38, radius: 19),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _FeaturedEventSkeleton extends StatelessWidget {
+  const _FeaturedEventSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerCard(
+      height: 196,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: const [
+          Row(
+            textDirection: TextDirection.rtl,
+            children: [
+              ShimmerBlock(width: 68, height: 26, radius: 13),
+              Spacer(),
+              ShimmerBlock(width: 82, height: 26, radius: 13),
+            ],
+          ),
+          Spacer(),
+          Row(
+            textDirection: TextDirection.rtl,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ShimmerBlock(height: 18, radius: 8),
+                    SizedBox(height: 9),
+                    FractionallySizedBox(
+                      widthFactor: 0.72,
+                      alignment: AlignmentDirectional.centerStart,
+                      child: ShimmerBlock(height: 18, radius: 8),
+                    ),
+                    SizedBox(height: 14),
+                    ShimmerBlock(height: 50, radius: 8),
+                  ],
+                ),
+              ),
+              SizedBox(width: 16),
+              ShimmerBlock(width: 88, height: 72, radius: 10),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EventSectionHeaderSkeleton extends StatelessWidget {
+  const _EventSectionHeaderSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      textDirection: TextDirection.rtl,
+      children: [
+        ShimmerBlock(width: 4, height: 24, radius: 2),
+        SizedBox(width: 8),
+        ShimmerBlock(width: 116, height: 18, radius: 8),
+        Spacer(),
+        ShimmerBlock(width: 74, height: 26, radius: 13),
+      ],
+    );
+  }
+}
+
+class _ActiveEventSkeleton extends StatelessWidget {
+  const _ActiveEventSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerCard(
+      height: 130,
+      child: Row(
+        textDirection: TextDirection.rtl,
+        children: const [
+          ShimmerBlock(width: 82, height: 82, radius: 8),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  textDirection: TextDirection.rtl,
+                  children: [
+                    ShimmerBlock(width: 70, height: 22, radius: 11),
+                    SizedBox(width: 8),
+                    ShimmerBlock(width: 58, height: 22, radius: 11),
+                  ],
+                ),
+                SizedBox(height: 10),
+                ShimmerBlock(height: 15, radius: 7),
+                SizedBox(height: 8),
+                FractionallySizedBox(
+                  widthFactor: 0.7,
+                  alignment: AlignmentDirectional.centerStart,
+                  child: ShimmerBlock(height: 15, radius: 7),
+                ),
+                SizedBox(height: 12),
+                ShimmerBlock(height: 22, radius: 7),
+              ],
+            ),
+          ),
+          SizedBox(width: 8),
+          ShimmerBlock(width: 28, height: 28, radius: 14),
+        ],
       ),
     );
   }
@@ -136,10 +439,11 @@ class _SearchAndFilters extends ConsumerWidget {
     return Column(
       children: [
         SizedBox(
-          height: 44,
+          height: 48,
           child: TextField(
             key: const ValueKey('events-search-field'),
             controller: controller,
+            textInputAction: TextInputAction.search,
             textAlign: TextAlign.right,
             textDirection: TextDirection.rtl,
             textAlignVertical: TextAlignVertical.center,
@@ -178,16 +482,16 @@ class _SearchAndFilters extends ConsumerWidget {
               filled: true,
               fillColor: AppColors.surface,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(11),
+                borderRadius: BorderRadius.circular(8),
                 borderSide: const BorderSide(color: AppColors.softBorder),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(11),
+                borderRadius: BorderRadius.circular(8),
                 borderSide: const BorderSide(color: AppColors.softBorder),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(11),
-                borderSide: const BorderSide(color: AppColors.teal),
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppColors.teal, width: 1.4),
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
             ),
@@ -236,7 +540,7 @@ class _CategoryScroller extends ConsumerWidget {
     final selectedCategory = ref.watch(selectedEventCategoryProvider);
 
     return SizedBox(
-      height: 38,
+      height: 40,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
@@ -297,7 +601,7 @@ class _CategoryChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: Container(
-          height: 34,
+          height: 38,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
@@ -355,7 +659,7 @@ class _FeaturedEventCarousel extends ConsumerWidget {
     }
 
     return SizedBox(
-      height: 188,
+      height: 196,
       child: PageView.builder(
         controller: controller,
         padEnds: false,
@@ -381,7 +685,7 @@ class _FeaturedEventCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xff071b5c),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         boxShadow: const [
           BoxShadow(
             color: Color(0x26071b5c),
@@ -442,28 +746,30 @@ class _FeaturedEventCard extends StatelessWidget {
             top: 42,
             child: _HeroEventVisual(kind: event.visualKind),
           ),
-          PositionedDirectional(
-            start: 16,
-            top: 12,
-            child: _TagPill(
-              label: event.typeLabel,
-              foreground: Colors.white,
-              background: const Color(0xff5946d8),
+          if (event.typeLabel.isNotEmpty)
+            PositionedDirectional(
+              start: 16,
+              top: 14,
+              child: _TagPill(
+                label: event.typeLabel,
+                foreground: Colors.white,
+                background: const Color(0xff2a6fd6),
+              ),
             ),
-          ),
-          PositionedDirectional(
-            end: 16,
-            top: 12,
-            child: _TagPill(
-              label: event.statusLabel,
-              foreground: const Color(0xff0f5c32),
-              background: const Color(0xffbff2c6),
+          if (event.statusLabel.isNotEmpty)
+            PositionedDirectional(
+              end: 16,
+              top: 14,
+              child: _TagPill(
+                label: event.statusLabel,
+                foreground: const Color(0xff0f5c32),
+                background: const Color(0xffbff2c6),
+              ),
             ),
-          ),
           PositionedDirectional(
-            top: 48,
+            top: 54,
             start: 16,
-            end: 132,
+            end: 130,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -474,31 +780,33 @@ class _FeaturedEventCard extends StatelessWidget {
                   textAlign: TextAlign.right,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: Colors.white,
-                    fontSize: 16.5,
+                    fontSize: 17,
                     fontWeight: FontWeight.w900,
                     height: 1.34,
                   ),
                 ),
-                const SizedBox(height: 7),
-                Text(
-                  PersianDigits.format(event.summary),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.78),
-                    fontSize: 10.8,
-                    fontWeight: FontWeight.w700,
-                    height: 1.55,
+                if (event.summary.isNotEmpty) ...[
+                  const SizedBox(height: 7),
+                  Text(
+                    PersianDigits.format(event.summary),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 10.8,
+                      fontWeight: FontWeight.w700,
+                      height: 1.5,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
           PositionedDirectional(
-            start: 10,
-            end: 10,
-            bottom: 10,
+            start: 12,
+            end: 12,
+            bottom: 12,
             child: _EventMetaContainer(event: event),
           ),
         ],
@@ -588,6 +896,9 @@ class _EventMetaRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = _eventMetaItems(event, dense: dense);
+    if (items.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Row(
       textDirection: TextDirection.rtl,
@@ -690,21 +1001,24 @@ class _EventMetaData {
 
 List<_EventMetaData> _eventMetaItems(EventItem event, {required bool dense}) {
   return [
-    _EventMetaData(
-      icon: Icons.calendar_month_outlined,
-      label: dense ? 'ثبت‌نام' : 'مهلت ثبت‌نام',
-      value: PersianDateFormatter.format(event.registrationDeadline),
-    ),
-    _EventMetaData(
-      icon: Icons.event_available_outlined,
-      label: dense ? 'برگزاری' : 'تاریخ برگزاری',
-      value: PersianDateFormatter.format(event.eventDate),
-    ),
-    _EventMetaData(
-      icon: Icons.local_offer_outlined,
-      label: 'هزینه',
-      value: event.feeLabel,
-    ),
+    if (event.registrationDeadline != null)
+      _EventMetaData(
+        icon: Icons.calendar_month_outlined,
+        label: dense ? 'ثبت‌نام' : 'مهلت ثبت‌نام',
+        value: PersianDateFormatter.format(event.registrationDeadline!),
+      ),
+    if (event.eventDate != null)
+      _EventMetaData(
+        icon: Icons.event_available_outlined,
+        label: dense ? 'برگزاری' : 'تاریخ برگزاری',
+        value: PersianDateFormatter.format(event.eventDate!),
+      ),
+    if (event.feeLabel.isNotEmpty)
+      _EventMetaData(
+        icon: Icons.local_offer_outlined,
+        label: 'هزینه',
+        value: event.feeLabel,
+      ),
   ];
 }
 
@@ -755,7 +1069,9 @@ class _FeaturedDots extends ConsumerWidget {
 }
 
 class _ActiveEventsHeader extends StatelessWidget {
-  const _ActiveEventsHeader();
+  const _ActiveEventsHeader({required this.totalCount});
+
+  final int totalCount;
 
   @override
   Widget build(BuildContext context) {
@@ -784,21 +1100,24 @@ class _ActiveEventsHeader extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 8),
-        TextButton.icon(
-          onPressed: () {},
-          iconAlignment: IconAlignment.end,
-          icon: const Icon(Icons.chevron_right_rounded, size: 16),
-          label: const Text('مشاهده همه'),
-          style: TextButton.styleFrom(
-            foregroundColor: AppColors.brightTeal,
-            textStyle: Theme.of(context).textTheme.labelSmall?.copyWith(
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
+        Container(
+          height: 26,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: AppColors.tealSoft,
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Center(
+            child: Text(
+              '${PersianDigits.format(totalCount)} رویداد',
+              textDirection: TextDirection.rtl,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: AppColors.teal,
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                height: 1.05,
+              ),
             ),
-            padding: EdgeInsets.zero,
-            minimumSize: const Size(0, 28),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         ),
       ],
@@ -831,17 +1150,19 @@ class _ActiveEventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const radius = 8.0;
+
     return Material(
       color: AppColors.surface,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(radius),
       child: InkWell(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(radius),
         onTap: () {},
         child: Container(
-          constraints: const BoxConstraints(minHeight: 124),
+          constraints: const BoxConstraints(minHeight: 130),
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(radius),
             border: Border.all(color: AppColors.softBorder),
             boxShadow: const [
               BoxShadow(
@@ -851,18 +1172,22 @@ class _ActiveEventCard extends StatelessWidget {
               ),
             ],
           ),
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(12),
           child: Row(
             textDirection: TextDirection.rtl,
             children: [
               _EventThumbnail(kind: event.visualKind),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(child: _ActiveEventText(event: event)),
-              const SizedBox(width: 4),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.brightTeal,
-                size: 24,
+              const SizedBox(width: 8),
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: AppColors.tealSoft,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const ForwardChevron(color: AppColors.teal),
               ),
             ],
           ),
@@ -886,43 +1211,55 @@ class _ActiveEventText extends StatelessWidget {
         Row(
           textDirection: TextDirection.rtl,
           children: [
-            Expanded(
-              child: Text(
-                PersianDigits.format(event.title),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.right,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.ink,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                  height: 1.25,
+            if (event.statusLabel.isNotEmpty)
+              Flexible(
+                fit: FlexFit.loose,
+                child: _StatusBadge(
+                  label: event.statusLabel,
+                  tone: event.statusTone,
+                  compact: true,
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            _StatusBadge(
-              label: event.statusLabel,
-              tone: event.statusTone,
-              compact: true,
-            ),
+            if (event.typeLabel.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Flexible(
+                fit: FlexFit.loose,
+                child: _TypeBadge(label: event.typeLabel),
+              ),
+            ],
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 7),
         Text(
-          PersianDigits.format(event.summary),
+          PersianDigits.format(event.title),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.right,
           textDirection: TextDirection.rtl,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: AppColors.muted,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppColors.ink,
+            fontSize: 14,
+            fontWeight: FontWeight.w900,
             height: 1.35,
           ),
         ),
-        const SizedBox(height: 10),
+        if (event.summary.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            PersianDigits.format(event.summary),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            textDirection: TextDirection.rtl,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AppColors.muted,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              height: 1.35,
+            ),
+          ),
+        ],
+        const SizedBox(height: 12),
         _EventMetaRow(
           event: event,
           dense: true,
@@ -961,9 +1298,42 @@ class _StatusBadge extends StatelessWidget {
           label,
           textDirection: TextDirection.rtl,
           maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
             color: colors.foreground,
             fontSize: compact ? 10 : 10.5,
+            fontWeight: FontWeight.w900,
+            height: 1.05,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TypeBadge extends StatelessWidget {
+  const _TypeBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 22,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xffeef4ff),
+        borderRadius: BorderRadius.circular(11),
+      ),
+      child: Center(
+        child: Text(
+          label,
+          textDirection: TextDirection.rtl,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: AppColors.royalBlueDark,
+            fontSize: 10,
             fontWeight: FontWeight.w900,
             height: 1.05,
           ),
@@ -999,7 +1369,7 @@ class _EmptyEventsPanel extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 22),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppColors.softBorder),
       ),
       child: Column(
@@ -1149,15 +1519,15 @@ class _EventThumbnail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 78,
-      height: 78,
+      width: 82,
+      height: 82,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
           colors: _thumbnailColors(kind),
         ),
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(8),
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -1219,6 +1589,10 @@ List<Color> _thumbnailColors(EventVisualKind kind) {
       const Color(0xff3751b5),
       const Color(0xfff08f3f),
     ],
+    EventVisualKind.generic => [
+      const Color(0xff40566b),
+      const Color(0xff6ea6a8),
+    ],
   };
 }
 
@@ -1240,6 +1614,11 @@ class _ThumbnailIcon extends StatelessWidget {
       ),
       EventVisualKind.video => const Icon(
         Icons.play_circle_fill_rounded,
+        color: Colors.white,
+        size: 38,
+      ),
+      EventVisualKind.generic => const Icon(
+        Icons.event_available_rounded,
         color: Colors.white,
         size: 38,
       ),

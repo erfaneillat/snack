@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../features/competitions/presentation/pages/competitions_page.dart';
 import '../features/events/presentation/pages/events_page.dart';
 import '../features/news/presentation/pages/news_page.dart';
+import '../features/weblog/presentation/pages/weblog_page.dart';
 import 'main_navigation_page.dart';
 import 'theme/app_theme.dart';
 
@@ -21,8 +23,10 @@ class UniversityNewsApp extends StatelessWidget {
         );
       },
       routes: {
+        CompetitionsPage.routeName: (context) => const CompetitionsPage(),
         EventsPage.routeName: (context) => const EventsPage(),
         NewsPage.routeName: (context) => const NewsPage(),
+        WeblogPage.routeName: (context) => const WeblogPage(),
       },
       home: const MainNavigationPage(),
     );

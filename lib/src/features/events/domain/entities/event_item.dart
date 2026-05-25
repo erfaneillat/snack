@@ -4,34 +4,34 @@ enum EventCategory { entrepreneurship, art, skill, science }
 
 enum EventStatusTone { open, upcoming, urgent }
 
-enum EventVisualKind { video, content, finance, science, workshop }
+enum EventVisualKind { video, content, finance, science, workshop, generic }
 
 @immutable
 class EventItem {
   const EventItem({
-    required this.id,
+    this.id,
     required this.title,
     required this.summary,
-    required this.category,
+    this.category,
     required this.typeLabel,
     required this.statusLabel,
     required this.statusTone,
-    required this.registrationDeadline,
-    required this.eventDate,
+    this.registrationDeadline,
+    this.eventDate,
     required this.feeLabel,
     required this.visualKind,
     this.featured = false,
   });
 
-  final int id;
+  final int? id;
   final String title;
   final String summary;
-  final EventCategory category;
+  final EventCategory? category;
   final String typeLabel;
   final String statusLabel;
   final EventStatusTone statusTone;
-  final DateTime registrationDeadline;
-  final DateTime eventDate;
+  final DateTime? registrationDeadline;
+  final DateTime? eventDate;
   final String feeLabel;
   final EventVisualKind visualKind;
   final bool featured;

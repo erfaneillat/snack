@@ -11,7 +11,18 @@ class GetNewsFeed {
     int page = AppConfig.defaultPage,
     int pageSize = AppConfig.defaultPageSize,
     int type = AppConfig.defaultNewsType,
+    String query = '',
   }) {
+    final normalizedQuery = query.trim();
+    if (normalizedQuery.isNotEmpty) {
+      return _repository.searchNews(
+        query: normalizedQuery,
+        page: page,
+        pageSize: pageSize,
+        type: type,
+      );
+    }
+
     return _repository.getNews(page: page, pageSize: pageSize, type: type);
   }
 }

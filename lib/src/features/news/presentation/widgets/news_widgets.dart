@@ -5,5 +5,4 @@ export 'news_sidebar.dart';
 export 'news_toolbar.dart';
 export 'responsive_page_frame.dart';
 export 'section_heading.dart';
-export 'source_notice.dart';
 export 'state_panels.dart';

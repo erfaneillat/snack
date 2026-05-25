@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../features/competitions/presentation/pages/competitions_page.dart';
 import '../features/events/presentation/pages/events_page.dart';
 import '../features/news/presentation/pages/news_page.dart';
+import '../features/weblog/presentation/pages/weblog_page.dart';
 import 'theme/app_colors.dart';
 
 class MainNavigationPage extends StatefulWidget {
@@ -19,7 +21,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
-        children: const [EventsPage(), NewsPage()],
+        children: const [
+          EventsPage(),
+          CompetitionsPage(),
+          NewsPage(),
+          WeblogPage(),
+        ],
       ),
       bottomNavigationBar: _MobileBottomNavigation(
         selectedIndex: _selectedIndex,
@@ -64,6 +71,7 @@ class _MobileBottomNavigation extends StatelessWidget {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 430),
               child: Row(
+                textDirection: TextDirection.rtl,
                 children: [
                   Expanded(
                     child: _BottomNavItem(
@@ -77,12 +85,32 @@ class _MobileBottomNavigation extends StatelessWidget {
                   ),
                   Expanded(
                     child: _BottomNavItem(
+                      key: const ValueKey('nav-competitions'),
+                      icon: Icons.emoji_events_outlined,
+                      selectedIcon: Icons.emoji_events_rounded,
+                      label: 'مسابقات',
+                      selected: selectedIndex == 1,
+                      onTap: () => onSelected(1),
+                    ),
+                  ),
+                  Expanded(
+                    child: _BottomNavItem(
                       key: const ValueKey('nav-news'),
                       icon: Icons.article_outlined,
                       selectedIcon: Icons.article_rounded,
                       label: 'اخبار',
-                      selected: selectedIndex == 1,
-                      onTap: () => onSelected(1),
+                      selected: selectedIndex == 2,
+                      onTap: () => onSelected(2),
+                    ),
+                  ),
+                  Expanded(
+                    child: _BottomNavItem(
+                      key: const ValueKey('nav-weblog'),
+                      icon: Icons.auto_stories_outlined,
+                      selectedIcon: Icons.auto_stories_rounded,
+                      label: 'وبلاگ',
+                      selected: selectedIndex == 3,
+                      onTap: () => onSelected(3),
                     ),
                   ),
                 ],
@@ -145,6 +173,7 @@ class _BottomNavItem extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                  textDirection: TextDirection.rtl,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: color,
                     fontSize: 10,

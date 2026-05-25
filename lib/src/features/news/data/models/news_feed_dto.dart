@@ -29,18 +29,12 @@ class NewsFeedDto {
     );
   }
 
-  NewsFeed toEntity({
-    required DateTime loadedAt,
-    NewsSource source = NewsSource.remote,
-    String? notice,
-  }) {
+  NewsFeed toEntity({required DateTime loadedAt}) {
     return NewsFeed(
       page: page,
       pageSize: pageSize,
       totalCount: totalCount,
       loadedAt: loadedAt,
-      source: source,
-      notice: notice,
       items: [for (final item in items) item.toEntity()],
     );
   }

@@ -234,10 +234,8 @@ class _HeroMetrics extends StatelessWidget {
         ),
         NewsMetricTile(
           dark: true,
-          icon: currentFeed?.isFallback == true
-              ? Icons.inventory_2_outlined
-              : Icons.cloud_done_outlined,
-          value: currentFeed?.isFallback == true ? 'نمونه' : 'زنده',
+          icon: Icons.cloud_done_outlined,
+          value: currentFeed == null ? '...' : 'زنده',
           label: 'منبع داده',
         ),
       ],
